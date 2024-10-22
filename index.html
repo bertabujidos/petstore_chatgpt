@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Petstore App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #000;
+            background-color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .pet-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .pet-item {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pet-details {
+            flex: 1;
+        }
+        button {
+            background-color: #fff;
+            border: 1px solid #000;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #f0f0f0;
+        }
+        form {
+            border: 1px solid #000;
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+        form div {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #000;
+            background-color: #fff;
+            color: #000;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+        .success {
+            color: green;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Petstore App</h1>
+    </header>
+    <div class="container">
+        <section id="add-pet-section">
+            <h2>Añadir Nueva Mascota</h2>
+            <form id="add-pet-form">
+                <div class="error" id="add-pet-error"></div>
+                <div class="success" id="add-pet-success"></div>
+                <div>
+                    <label for="pet-name">Nombre:</label>
+                    <input type="text" id="pet-name" name="name" required>
+                </div>
+                <div>
+                    <label for="pet-status">Estado:</label>
+                    <select id="pet-status" name="status" required>
+                        <option value="available">Disponible</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="sold">Vendido</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="pet-category">Categoría:</label>
+                    <input type="text" id="pet-category" name="category">
+                </div>
+                <div>
+                    <label for="pet-photo">URL de la Foto:</label>
+                    <input type="text" id="pet-photo" name="photoUrls">
+                </div>
+                <button type="submit">Agregar Mascota</button>
+            </form>
+        </section>
+
+        <section id="pet-list-section">
+            <h2>Listado de Mascotas</h2>
+            <button id="refresh-pet-list">Actualizar Listado</button>
+            <ul class="pet-list" id="pet-list">
+                <!-- Las mascotas se listarán aquí -->
+            </ul>
+        </section>
+    </div>
+
+    <script>
+        const apiBaseUrl = '/api/v3'; // Asegúrate de que este sea el URL correcto de tu API
+
+        // Función para obtener la lista de mascotas
+        async function fetchPets() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/pet/findByStatus?status=available`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener las mascotas');
+                }
+                const pets = await response.json();
+                displayPets(pets);
+            } catch (error) {
+                console.error(error);
+                alert('No se pudo cargar la lista de mascotas.');
+            }
+        }
+
+        // Función para mostrar las mascotas en el DOM
+        function displayPets(pets) {
+            const petList = document.getElementById('pet-list');
+            petList.innerHTML = '';
+            pets.forEach(pet => {
+                const listItem = document.createElement('li');
+                listItem.className = 'pet-item';
+
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'pet-details';
+                detailsDiv.innerHTML = `<strong>${pet.name}</strong> - Estado: ${pet.status}`;
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Eliminar';
+                deleteButton.onclick = () => deletePet(pet.id);
+
+                listItem.appendChild(detailsDiv);
+                listItem.appendChild(deleteButton);
+                petList.appendChild(listItem);
+            });
+        }
+
+        // Función para agregar una nueva mascota
+        async function addPet(event) {
+            event.preventDefault();
+            const name = document.getElementById('pet-name').value;
+            const status = document.getElementById('pet-status').value;
+            const category = document.getElementById('pet-category').value;
+            const photoUrl = document.getElementById('pet-photo').value;
+
+            const petData = {
+                name: name,
+                status: status,
+                category: category ? { name: category } : null,
+                photoUrls: photoUrl ? [photoUrl] : []
+            };
+
+            try {
+                const response = await fetch(`${apiBaseUrl}/pet`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(petData)
+                });
+                if (!response.ok) {
+                    throw new Error('Error al agregar la mascota');
+                }
+                const result = await response.json();
+                document.getElementById('add-pet-success').textContent = `Mascota "${result.name}" agregada exitosamente.`;
+                document.getElementById('add-pet-form').reset();
+                fetchPets();
+                setTimeout(() => {
+                    document.getElementById('add-pet-success').textContent = '';
+                }, 3000);
+            } catch (error) {
+                console.error(error);
+                document.getElementById('add-pet-error').textContent = 'No se pudo agregar la mascota.';
+                setTimeout(() => {
+                    document.getElementById('add-pet-error').textContent = '';
+                }, 3000);
+            }
+        }
+
+        // Función para eliminar una mascota
+        async function deletePet(petId) {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta mascota?')) return;
+
+            try {
+                const response = await fetch(`${apiBaseUrl}/pet/${petId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (response.status === 200) {
+                    alert('Mascota eliminada exitosamente.');
+                    fetchPets();
+                } else {
+                    throw new Error('Error al eliminar la mascota');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('No se pudo eliminar la mascota.');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('add-pet-form').addEventListener('submit', addPet);
+        document.getElementById('refresh-pet-list').addEventListener('click', fetchPets);
+
+        // Cargar mascotas al iniciar
+        window.onload = fetchPets;
+    </script>
+</body>
+</html>
